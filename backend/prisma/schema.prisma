@@ -1,0 +1,120 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  INSTRUCTOR
+  ADMIN
+}
+
+model User {
+  id              String               @id @default(uuid())
+  name            String
+  email           String               @unique
+  password        String
+  role            Role                 @default(STUDENT)
+  xp              Int                  @default(0)
+  level           Int                  @default(1)
+  exercises       Exercise[]
+  submissions     Submission[]
+  badges          UserBadge[]
+  lessons         Lesson[]
+  lessonProgress  UserLessonProgress[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+}
+
+model Badge {
+  id          String      @id @default(uuid())
+  name        String
+  description String
+  imageUrl    String?     // Opcional: Caminho para o ícone
+  users       UserBadge[]
+  createdAt   DateTime    @default(now())
+}
+
+model UserBadge {
+  id        String   @id @default(uuid())
+  userId    String
+  badgeId   String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  awardedAt DateTime @default(now())
+
+  @@unique([userId, badgeId]) // Um usuário só pode ganhar a mesma badge uma vez
+}
+
+model Lesson {
+  id          String               @id @default(uuid())
+  title       String
+  content     String               // Texto em Markdown
+  language    String               @default("logic") // logic, javascript, python
+  xpReward    Int                  @default(50)
+  authorId    String
+  author      User                 @relation(fields: [authorId], references: [id])
+  progresses  UserLessonProgress[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+}
+
+model UserLessonProgress {
+  id          String   @id @default(uuid())
+  userId      String
+  lessonId    String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  completedAt DateTime @default(now())
+
+  @@unique([userId, lessonId]) // Garante que o aluno só receba o progresso uma vez por aula
+}
+
+model Exercise {
+  id          String       @id @default(uuid())
+  title       String
+  description String
+  difficulty  String       @default("EASY") // EASY, MEDIUM, HARD
+  language    String       @default("javascript")
+  initialCode String       @default("")
+  points      Int          @default(10)
+  authorId    String
+  author      User         @relation(fields: [authorId], references: [id])
+  testCases   TestCase[]
+  submissions Submission[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model TestCase {
+  id             String   @id @default(uuid())
+  exerciseId     String
+  exercise       Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  input          String
+  expectedOutput String
+  isHidden       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Submission {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exerciseId String
+  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  code       String
+  status     String   @default("PENDING") // PENDING, SUCCESS, FAILED, ERROR
+  feedback   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
